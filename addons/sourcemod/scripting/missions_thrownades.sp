@@ -14,7 +14,7 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-    MISSIONS_RegisterMission("Kill-Mission");
+    MISSIONS_RegisterMission("ThrowNade-Mission");
     HookEvent("grenade_thrown", Event_GrenadeThrown);
 }
 

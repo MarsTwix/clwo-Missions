@@ -27,3 +27,25 @@ native void MISSIONS_RemoveCoins(int client, int coins);
  * @param karma             coins for the client.
  */
  native void MISSIONS_SetCoins(int client, int coins);
+
+ /**
+ * Registers the name of the mission in an array
+ *
+ * @param MissionName       The name of the mission.
+ */
+ native void MISSIONS_RegisterMission(char[] MissionName);
+
+ /**
+ *Checks if the given name is in the array of missions names.
+ *
+ * @param MissionName       The name of the mission.
+ */
+ native bool MISSIONS_IsValidMission(char[] MissionName);
+
+ /**
+ *Checks if the client has the given mission.
+ *
+ * @param client            Client index.
+ * @param MissionName       The name of the mission.
+ */
+ native bool MISSIONS_IsValidClientMission(int client, char[] MissionName);

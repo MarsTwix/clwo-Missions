@@ -3,7 +3,12 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <adt_array>
 #include <missions>
+
+ArrayList g_aMissionsList = null;
+int MissionCounter = 0;
+char g_cClientMissions[(MAXPLAYERS + 1) * 3][32];
 
 #pragma newdecls required
 
@@ -26,6 +31,10 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
     RegConsoleCmd("sm_coins", Command_Coins, "Prints the amount of coins you got");
+    RegConsoleCmd("sm_missions", Command_Missions, "Prints the missions you got");
+    RegConsoleCmd("sm_allmissions", Command_AllMissions, "Prints every missions in the array");
+
+    g_aMissionsList = new ArrayList(32);
     LoadTranslations("common.phrases.txt");
 }
 
@@ -34,6 +43,10 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
     CreateNative("MISSIONS_AddCoins", Native_AddCoins);
     CreateNative("MISSIONS_RemoveCoins", Native_RemoveCoins);
     CreateNative("MISSIONS_SetCoins", Native_SetCoins);
+
+    CreateNative("MISSIONS_RegisterMission", Native_RegisterMission);
+    CreateNative("MISSIONS_IsValidMission", Native_IsValidMission);
+    CreateNative("MISSIONS_IsValidClientMission", Native_IsValidClientMission);
 
     return APLRes_Success;
 }
@@ -131,6 +144,25 @@ Action Command_Coins(int client, int args)
     return Plugin_Handled;
 }
 
+public Action Command_Missions(int client, int args)
+{
+    for(int i = 0; i < 3; i++)
+    {
+
+        PrintToChat(client, "%i. %s", i++, g_cClientMissions[client*3+i]);
+    }
+}
+
+public Action Command_AllMissions(int client, int args)
+{
+    for(int i = 0; i <= g_aMissionsList.Length; i++)
+    {
+        char MissionName[32];
+        g_aMissionsList.GetString(i, MissionName, sizeof(MissionName));
+        PrintToChat(client, "%i. %s", i, MissionName);
+    }
+}
+
 public int Native_AddCoins(Handle plugin, int numParams)
 {
     int client = GetNativeCell(1);
@@ -156,4 +188,42 @@ public int Native_SetCoins(Handle plugin, int numParams)
 
     g_iPlayer[client].Coins = coins;
     return 0;
+}
+
+public int Native_RegisterMission(Handle plugin, int numParams)
+{
+    char MissionName[32];
+    GetNativeString(1, MissionName, sizeof(MissionName));
+    g_aMissionsList.PushString(MissionName);
+    MissionCounter++;
+}
+
+public int Native_IsValidMission(Handle plugin, int numParams)
+{
+    char MissionName[32];
+    GetNativeString(1, MissionName, sizeof(MissionName));
+    if (g_aMissionsList.FindString(MissionName) == -1)
+    {
+        return false;
+    }
+
+    else
+    {
+        return true;
+    }
+}
+
+public int Native_IsValidClientMission(Handle plugin, int numParams)
+{
+    int client = GetNativeCell(1);
+    char MissionName[32];
+    GetNativeString(2, MissionName, sizeof(MissionName));
+    for(int i = 0; i < 3; i++)
+    {
+        if (StrEqual(g_cClientMissions[client*3+i], MissionName, false))
+        {
+            return true;
+        }
+    }
+    return false;
 }

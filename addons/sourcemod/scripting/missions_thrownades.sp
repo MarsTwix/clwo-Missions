@@ -3,6 +3,9 @@
 #include <sdkhooks>
 #include <missions>
 
+#define Mission_Name "ThrowNades"
+#define CoinsPerNade 10
+
 public Plugin myinfo =
 {
     name = "ThrowNade-Mission",
@@ -14,11 +17,35 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-    MISSIONS_RegisterMission("ThrowNade-Mission");
+    Missions_RegisterMission(Mission_Name);
     HookEvent("grenade_thrown", Event_GrenadeThrown);
+}
+
+public void Missions_OnGivenMission(int client, char[] MissionName, int index)
+{
+    if (StrEqual(Mission_Name, MissionName, false))
+    {
+        int RandomNum = GetRandomInt(4, 6);
+        Missions_SetProgressionGoal(client, MissionName, RandomNum);
+    }
 }
 
 public Action Event_GrenadeThrown(Event event, const char[] name, bool dontBroadcast)
 {
-    
+    int clientId = event.GetInt("userid");
+    int client = GetClientOfUserId(clientId);
+    char time[16];
+    FormatTime(time, sizeof(time), "%H:%M:%S", GetTime());
+    PrintToConsoleAll("[%s] GrenadeThrown has been reached of the client number %i", time, client);
+    if (Missions_IsValidClientMission(client, Mission_Name))
+    {
+        Missions_AddProgression(client, Mission_Name);
+
+        if (Mission_HasCompleted(client, Mission_Name))
+        {
+            int goal = Missions_GetProgressionGoal(client, Mission_Name);
+            int coins = CoinsPerNade * goal;
+            Mission_RewardOnCompletion(client, Mission_Name, coins);
+        }
+    }
 }

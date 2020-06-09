@@ -15,6 +15,7 @@
 
 ## Mission ideas
  - Kills
+ - Certain kills (silenced/no-scope)
  - Jump
  - Footsteps
  - Win as Traitor

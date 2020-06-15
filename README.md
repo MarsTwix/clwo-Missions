@@ -5,15 +5,15 @@
     <strong>This plugin is for the community CLWO. The plugin is about completing missions and getting rewarded for doing so.</strong>
 </p>
 
-# Status
+### Status
 *Be aware this plugin is still in development, so expect some changes and issues.*
 
-# ToDo list
+### ToDo list
  - Menu system ~ v0.3
  - Automaticaly given missions ~ v0.4
  - Add missions from the missions ideas list
 
-# Mission ideas
+### Mission ideas
  - Kills
  - Certain kills (silenced/no-scope)
  - Jump
@@ -22,5 +22,5 @@
  - Use certain items (Healthshot / taser)
  - Id bodies
 
-# Download
+### Download
  - https://github.com/MarsTwix/clwo-Missions

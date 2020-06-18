@@ -34,18 +34,18 @@ public Action Event_GrenadeThrown(Event event, const char[] name, bool dontBroad
 {
     int clientId = event.GetInt("userid");
     int client = GetClientOfUserId(clientId);
-    char time[16];
-    FormatTime(time, sizeof(time), "%H:%M:%S", GetTime());
-    PrintToConsoleAll("[%s] GrenadeThrown has been reached of the client number %i", time, client);
     if (Missions_IsValidClientMission(client, Mission_Name))
     {
-        Missions_AddProgression(client, Mission_Name);
-
-        if (Mission_HasCompleted(client, Mission_Name))
+        if (!Missions_HasCompleted(client, Mission_Name))
+        {
+            Missions_AddProgression(client, Mission_Name);
+        }
+        
+        else if (Missions_HasCompleted(client, Mission_Name))
         {
             int goal = Missions_GetProgressionGoal(client, Mission_Name);
             int coins = CoinsPerNade * goal;
-            Mission_RewardOnCompletion(client, Mission_Name, coins);
+            Missions_RewardOnCompletion(client, Mission_Name, coins);
         }
     }
 }

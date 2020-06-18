@@ -64,7 +64,7 @@ native void Missions_RemoveCoins(int client, int coins);
  * @param client            Client index.
  * @param MissionName       The name of the mission.
  */
- native void Mission_GiveMission(int client, char[] MissionName);
+ native void Missions_GiveMission(int client, char[] MissionName);
 
 /**
  *Removes the given mission of a client.
@@ -72,7 +72,7 @@ native void Missions_RemoveCoins(int client, int coins);
  * @param client            Client index.
  * @param MissionName       The name of the mission.
  */
- native void Mission_RemoveMission(int client, char[] MissionName);
+ native void Missions_RemoveMission(int client, char[] MissionName);
 
  /**
  *Sets the Progression goal of the given mission of the client.
@@ -106,7 +106,7 @@ native void Missions_RemoveCoins(int client, int coins);
  * @param client            Client index.
  * @param MissionName       The name of the mission.
  */
- native bool Mission_HasCompleted(int client, char[] MissionName);
+ native bool Missions_HasCompleted(int client, char[] MissionName);
  
  /**
  *Checks if the client has completed the given mission.
@@ -115,7 +115,7 @@ native void Missions_RemoveCoins(int client, int coins);
  * @param MissionName       The name of the mission.
  * @param Coins             The amount of coins.
  */
- native void Mission_RewardOnCompletion(int client, char[] MissionName, int coins);
+ native void Missions_RewardOnCompletion(int client, char[] MissionName, int coins);
 
  /**
  *Gets called when A mission has been given to a client

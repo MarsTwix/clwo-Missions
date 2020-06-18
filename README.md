@@ -1,5 +1,5 @@
 <h1 align="center">
-    CLWO: Missions v0.2.0
+    CLWO: Missions v0.3.0
 </h1>
 <p align="center">
     <strong>This plugin is for the community CLWO. The plugin is about completing missions and getting rewarded for doing so.</strong>
@@ -9,7 +9,7 @@
 *Be aware this plugin is still in development, so expect some changes and issues.*
 
 ### ToDo list
- - Menu system ~ v0.3
+ - ~~Menu system ~ v0.3~~
  - Automaticaly given missions ~ v0.4
  - Add missions from the missions ideas list
 

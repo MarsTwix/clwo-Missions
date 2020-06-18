@@ -32,7 +32,7 @@ public Plugin myinfo =
     name = "Missions",
     author = "MarsTwix",
     description = "Misions players can complete and get rewarded",
-    version = "0.3.0",
+    version = "0.3.1",
     url = "clwo.eu"
 };
 
@@ -493,6 +493,17 @@ public int MenuHandler_SetClientMissions(Menu menu, MenuAction action, int param
             menu.GetItem(param2, info, sizeof(info));
             Missions_RemoveMission(param1, info);
             Missions_GiveMission(param1, g_cMissionSave[param1]);
+
+            if (StrEqual(info, "NoMission"))
+            {
+                PrintToChat(param1, "An empty spot has been set to mission '%s'!", g_cMissionSave[param1]);
+            }
+
+            else
+            {
+                PrintToChat(param1, "Mission '%s' has been set to '%s'!", info, g_cMissionSave[param1]);
+            }
+            
         }
 
         case MenuAction_End:

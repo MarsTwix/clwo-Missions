@@ -39,13 +39,12 @@ public Action Event_GrenadeThrown(Event event, const char[] name, bool dontBroad
         if (!Missions_HasCompleted(client, Mission_Name))
         {
             Missions_AddProgression(client, Mission_Name);
-        }
-        
-        else if (Missions_HasCompleted(client, Mission_Name))
-        {
-            int goal = Missions_GetProgressionGoal(client, Mission_Name);
-            int coins = CoinsPerNade * goal;
-            Missions_RewardOnCompletion(client, Mission_Name, coins);
+            if (Missions_HasCompleted(client, Mission_Name))
+            {
+                int goal = Missions_GetProgressionGoal(client, Mission_Name);
+                int coins = CoinsPerNade * goal;
+                Missions_RewardOnCompletion(client, Mission_Name, coins);
+            }
         }
     }
 }

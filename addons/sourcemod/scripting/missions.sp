@@ -6,9 +6,13 @@
 #include <adt_array>
 #include <missions>
 
+#define CompletionSND "ui/coin_pickup_01.wav"
+
 GlobalForward g_fwOnGivenMission = null;
 
 ArrayList g_aMissionsList = null;
+ArrayList g_aMissionsSounds = null;
+
 int g_iMissionCounter = 0;
 char g_cClientMissions[(MAXPLAYERS + 1) * 3][32];
 char g_cMissionSave[MAXPLAYERS + 1][32];
@@ -32,7 +36,7 @@ public Plugin myinfo =
     name = "Missions",
     author = "MarsTwix",
     description = "Misions players can complete and get rewarded",
-    version = "0.3.1",
+    version = "0.4.0",
     url = "clwo.eu"
 };
 
@@ -44,6 +48,10 @@ public void OnPluginStart()
     g_cDebugging = CreateConVar("missions_debug", "1", "This is to enable list/give/remove/set missions commands for testing/debugging.");
 
     g_aMissionsList = new ArrayList(32);
+
+    g_aMissionsSounds = new ArrayList(PLATFORM_MAX_PATH);
+    AddSounds();
+
     LoadTranslations("common.phrases.txt");
 }
 
@@ -71,6 +79,17 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
     g_fwOnGivenMission = new GlobalForward("Missions_OnGivenMission", ET_Ignore, Param_Cell, Param_String, Param_Cell);
 
     return APLRes_Success;
+}
+
+public void OnMapStart()
+{
+    PrecacheSound(CompletionSND);
+    for (int i = 0; i < 56; i++)
+    {
+        char SND[PLATFORM_MAX_PATH];
+        g_aMissionsSounds.GetString(i, SND, sizeof(SND));
+        PrecacheSound(SND);
+    }
 }
 
 Action Command_Coins(int client, int args)
@@ -698,6 +717,80 @@ public int Native_RewardOnCompletion(Handle plugin, int numParams)
     Missions_AddCoins(client, coins);
 
     PrintToChat(client, "You've completed the mission '%s', You've been earned with %i coins!", MissionName, coins);
-
+    
+    EmitSoundToClient(client, CompletionSND);
+    int RandomNum = GetRandomInt(0, 56);
+    char SND[PLATFORM_MAX_PATH];
+    g_aMissionsSounds.GetString(RandomNum, SND, sizeof(SND));
+    EmitSoundToClient(client, SND);
     return 0;
+}
+
+void AddSounds()
+{
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag01.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag02.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag03.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag04.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag05.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag06.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag07.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag12.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag13.wav");
+    g_aMissionsSounds.PushString("player/vo/sas/onarollbrag14.wav");
+
+    g_aMissionsSounds.PushString("player/vo/phoenix/onarollbrag01.wav");
+    g_aMissionsSounds.PushString("player/vo/phoenix/onarollbrag03.wav");
+    g_aMissionsSounds.PushString("player/vo/phoenix/onarollbrag11.wav");
+
+    g_aMissionsSounds.PushString("player/vo/leet/onarollbrag01.wav");
+    g_aMissionsSounds.PushString("player/vo/leet/onarollbrag02.wav");
+    g_aMissionsSounds.PushString("player/vo/leet/onarollbrag03.wav");
+
+    g_aMissionsSounds.PushString("player/vo/idf/onarollbrag03.wav");
+    g_aMissionsSounds.PushString("player/vo/idf/onarollbrag04.wav");
+    g_aMissionsSounds.PushString("player/vo/idf/onarollbrag05.wav");
+    g_aMissionsSounds.PushString("player/vo/idf/onarollbrag06.wav");
+    g_aMissionsSounds.PushString("player/vo/idf/onarollbrag07.wav");
+    g_aMissionsSounds.PushString("player/vo/idf/onarollbrag08.wav");
+    g_aMissionsSounds.PushString("player/vo/idf/onarollbrag12.wav");
+
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag01.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag02.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag03.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag04.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag05.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag06.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag07.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag08.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag09.wav");
+    g_aMissionsSounds.PushString("player/vo/gsg9/onarollbrag09.wav");
+
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag01.wav");
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag02.wav");
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag03.wav");
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag04.wav");
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag05.wav");
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag06.wav");
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag07.wav");
+    g_aMissionsSounds.PushString("player/vo/gign/onarollbrag08.wav");
+
+
+    g_aMissionsSounds.PushString("player/vo/balkan/onarollbrag01.wav");
+    g_aMissionsSounds.PushString("player/vo/balkan/onarollbrag03.wav");
+    g_aMissionsSounds.PushString("player/vo/balkan/onarollbrag04.wav");
+    g_aMissionsSounds.PushString("player/vo/balkan/onarollbrag05.wav");
+
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag01.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag02.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag04.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag05.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag07.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag08.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag09.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag11.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag12.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag13.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag14.wav");
+    g_aMissionsSounds.PushString("player/vo/anarchist/onarollbrag15.wav");
 }

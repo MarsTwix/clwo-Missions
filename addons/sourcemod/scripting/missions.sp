@@ -36,7 +36,7 @@ public Plugin myinfo =
     name = "Missions",
     author = "MarsTwix",
     description = "Misions players can complete and get rewarded",
-    version = "0.4.0",
+    version = "0.4.1",
     url = "clwo.eu"
 };
 

@@ -3,12 +3,12 @@
 #include <sdkhooks>
 #include <missions>
 
-#define Mission_Name "ThrowNades"
+#define Mission_Name "AimNade"
 #define CoinsPerNade 10
 
 public Plugin myinfo =
 {
-    name = "ThrowNade-Mission",
+    name = "AimNade-Mission",
     author = "MarsTwix",
     description = "A mission that requires you to throw nades",
     version = "1.0.0",

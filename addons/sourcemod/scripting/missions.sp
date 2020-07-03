@@ -1,14 +1,24 @@
 #pragma semicolon 1
 
+//sourcemod
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 #include <adt_array>
+
+//ttt or others
+#include <colorlib>
+#include <ttt>
+
+//own
 #include <missions>
 
 #define CompletionSND "ui/coin_pickup_01.wav"
+#define tag "[info] "
 
 GlobalForward g_fwOnGivenMission = null;
+
+Database g_DataBase = null;
 
 ArrayList g_aMissionsList = null;
 ArrayList g_aMissionsSounds = null;
@@ -36,7 +46,7 @@ public Plugin myinfo =
     name = "Missions",
     author = "MarsTwix",
     description = "Misions players can complete and get rewarded",
-    version = "0.4.1",
+    version = "0.5.0",
     url = "clwo.eu"
 };
 
@@ -48,9 +58,10 @@ public void OnPluginStart()
     g_cDebugging = CreateConVar("missions_debug", "1", "This is to enable list/give/remove/set missions commands for testing/debugging.");
 
     g_aMissionsList = new ArrayList(32);
-
     g_aMissionsSounds = new ArrayList(PLATFORM_MAX_PATH);
     AddSounds();
+
+    Database.Connect(DbCallback_Connect, "missions");
 
     LoadTranslations("common.phrases.txt");
 }
@@ -92,9 +103,102 @@ public void OnMapStart()
     }
 }
 
+public void OnClientPutInServer(int client)
+{
+    g_iPlayer[client].Coins = -1;
+
+    Db_SelectClientCoins(client);
+}
+
+public void DbCallback_Connect(Database db, const char[] error, any data)
+{
+    if (db == null)
+    {
+        PrintToServer("DbCallback_Connect: %s", error);
+        return;
+    }
+
+    g_DataBase = db;
+    g_DataBase.SetCharset("utf8");
+
+    SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS store_coins (account_id INT UNSIGNED NOT NULL, coins INT UNSIGNED NOT NULL, PRIMARY KEY (account_id));");
+}
+
+public void Db_SelectClientCoins(int client)
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[128];
+    Format(query, sizeof(query), "SELECT `coins` FROM `store_coins` WHERE `account_id` = '%d';", accountId);
+    g_DataBase.Query(DbCallback_SelectClientCoins, query, GetClientUserId(client));
+}
+
+public void DbCallback_SelectClientCoins(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_SelectClientCoins: %s", error);
+        return;
+    }
+
+    int client = GetClientOfUserId(userid);
+    if (IsValidClient(client))
+    {
+        if (results.FetchRow())
+        {
+            g_iPlayer[client].Coins = results.FetchInt(0);
+        }
+        else
+        {
+            g_iPlayer[client].Coins = 0;
+            Db_InsertClientCoins(client);
+        }
+    }
+}
+
+public void Db_InsertClientCoins(int client)
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[89];
+    Format(query, sizeof(query), "INSERT INTO `store_coins` (`account_id`, `coins`) VALUES ('%d', '%d');", accountId, g_iPlayer[client].Coins);
+    g_DataBase.Query(DbCallback_InsertClientCoins, query, GetClientUserId(client));
+}
+
+public void DbCallback_InsertClientCoins(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_InsertClientCoins: %s", error);
+        return;
+    }
+}
+
+public void Db_UpdateClientCoins(int client)
+{
+    if (g_iPlayer[client].Coins < 0)
+    {
+        return;
+    }
+
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[89];
+    Format(query, sizeof(query), "UPDATE `store_coins` SET `coins` = '%d' WHERE `account_id` = '%d';", g_iPlayer[client].Coins, accountId);
+    g_DataBase.Query(DbCallback_UpdateClientCoins, query, GetClientUserId(client));
+}
+
+public void DbCallback_UpdateClientCoins(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_UpdateClientCoins: %s", error);
+    }
+}
+
 Action Command_Coins(int client, int args)
 {
-    if (args == 0){ReplyToCommand(client, "Coins: %i", g_iPlayer[client].Coins);}
+    if (args == 0){CReplyToCommand(client, "Coins: {orange}%i{default}", g_iPlayer[client].Coins);}
 
     else if (args == 2 || args == 3)
     {
@@ -109,22 +213,19 @@ Action Command_Coins(int client, int args)
             if (StrEqual(arg1, "add"))
             {
                 Missions_AddCoins(client, num);
-                ReplyToCommand(client, "Added %i coins!", num);
-                ReplyToCommand(client, "Coins: %i", g_iPlayer[client].Coins);
+                CReplyToCommand(client, tag ... "Added {orange}%i{default} coins!", num);
             }
 
             else if (StrEqual(arg1, "remove"))
             {
                 Missions_RemoveCoins(client, num);
-                ReplyToCommand(client, "Removed %i coins!", num);
-                ReplyToCommand(client, "Coins: %i", g_iPlayer[client].Coins);
+                CReplyToCommand(client, tag ... "Removed {orange}%i{default} coins!", num);
             }
 
             else if (StrEqual(arg1, "set"))
             {
                 Missions_SetCoins(client, num);
-                ReplyToCommand(client, "Your coins has been set to %i coins!", num);
-                ReplyToCommand(client, "Coins: %i", g_iPlayer[client].Coins);
+                CReplyToCommand(client, tag ... "Your coins has been set to {orange}%i{default} coins!", num);
             }
             else
             {
@@ -145,26 +246,23 @@ Action Command_Coins(int client, int args)
             if (StrEqual(arg1, "add"))
             { 
                 Missions_AddCoins(target, num);
-                ReplyToCommand(client, "You have added %i coins to %s!", num, name);
-                ReplyToCommand(target, "There has been %i coins added!", num);
-                ReplyToCommand(target, "Coins: %i", g_iPlayer[target].Coins);
+                CReplyToCommand(client, tag ... "You have added {orange}%i{default} coins to {yellow}%s{default}!", num, name);
+                CReplyToCommand(target, tag ... "There has been {orange}%i{default} coins added!", num);
             
             }
 
             else if (StrEqual(arg1, "remove"))
             {   
                 Missions_RemoveCoins(target, num);
-                ReplyToCommand(client, "You have removed %i coins of %s!", num, name);
-                ReplyToCommand(target, "There has been %i coins removed!", num);
-                ReplyToCommand(target, "Coins: %i", g_iPlayer[target].Coins);
+                CReplyToCommand(client, tag ... "You have removed {orange}%i{default} coins of {yellow}%s{default}!", num, name);
+                CReplyToCommand(target, tag ... "There has been {orange}%i{default} coins removed!", num);
             }
 
             else if (StrEqual(arg1, "set"))
             {
                 Missions_SetCoins(target, num);
-                ReplyToCommand(client, "You have set the coins of %s to %i coins!", name, num);
-                ReplyToCommand(target, "Your coins has been set to %i coins!", num);
-                ReplyToCommand(target, "Coins: %i", g_iPlayer[target].Coins);
+                CReplyToCommand(client, tag ... "You have set the coins of {yellow}%s{default} to {orange}%i{default} coins!", name, num);
+                CReplyToCommand(target, tag ... "Your coins has been set to {orange}%i{default} coins!", num);
             }
 
             else
@@ -341,7 +439,7 @@ public Action Command_Missions(int client, int args)
                         {
                             g_cClientMissions[client*3+i] = arg2;
 
-                            PrintToChat(client, "Mission '%s' is now on spot %i!",arg2, i+1);
+                            CPrintToChat(client, tag ... "Mission {orange}%s{default} is now on spot {yellow}%i{default}!",arg2, i+1);
                             NoSpace = false;
                             int index = client*3+i; 
                             Call_StartForward(g_fwOnGivenMission);
@@ -354,13 +452,13 @@ public Action Command_Missions(int client, int args)
                     }
                     if (NoSpace)
                     {
-                        ReplyToCommand(client, "There is no available spot in your mission list!");
+                        ReplyToCommand(client, tag ... "There is no available spot in your mission list!");
                     }
                 }
 
                 else
                 {
-                    ReplyToCommand(client, "'%s' is not a valid mission!", arg2);
+                    CReplyToCommand(client, tag ... "{orange}%s{default} is not a valid mission!", arg2);
                 }
             }
         }
@@ -410,7 +508,7 @@ public int MenuHandler_GiveAvailableMissions(Menu menu, MenuAction action, int p
                 {
                     g_cClientMissions[param1*3+i] = info;
 
-                    PrintToChat(param1, "Mission '%s' is now on spot %i!",info, i+1);
+                    CPrintToChat(param1, tag ... "Mission {orange}%s{default} is now on spot {yellow}%i{default}!",info, i+1);
                     NoSpace = false;
                     int index = param1*3+i; 
                     Call_StartForward(g_fwOnGivenMission);
@@ -423,7 +521,7 @@ public int MenuHandler_GiveAvailableMissions(Menu menu, MenuAction action, int p
             }
             if (NoSpace)
             {
-                PrintToChat(param1, "There is no available spot in your mission list!");
+                PrintToChat(param1, tag ... "There is no available spot in your mission list!");
             }
         }
 
@@ -444,7 +542,7 @@ public int MenuHandler_RemoveClientMissions(Menu menu, MenuAction action, int pa
             char info[32];
             menu.GetItem(param2, info, sizeof(info));
             Missions_RemoveMission(param1, info);
-            PrintToChat(param1, "Mission '%s' has been removed from your missions list!", info);
+            CPrintToChat(param1, tag ... "Mission {orange}%s{default} has been removed from your missions list!", info);
         }
 
         case MenuAction_End:
@@ -515,12 +613,12 @@ public int MenuHandler_SetClientMissions(Menu menu, MenuAction action, int param
 
             if (StrEqual(info, "NoMission"))
             {
-                PrintToChat(param1, "An empty spot has been set to mission '%s'!", g_cMissionSave[param1]);
+                CPrintToChat(param1, "An empty spot has been set to mission {orange}%s{default}!", g_cMissionSave[param1]);
             }
 
             else
             {
-                PrintToChat(param1, "Mission '%s' has been set to '%s'!", info, g_cMissionSave[param1]);
+                CPrintToChat(param1, tag ... "Mission {yellow}%s{default} has been set to {orange}%s{default}!", info, g_cMissionSave[param1]);
             }
             
         }
@@ -538,6 +636,7 @@ public int Native_AddCoins(Handle plugin, int numParams)
     int coins = GetNativeCell(2);
 
     g_iPlayer[client].Coins += coins;
+    Db_UpdateClientCoins(client);
     return 0;
 }
 
@@ -547,6 +646,7 @@ public int Native_RemoveCoins(Handle plugin, int numParams)
     int coins = GetNativeCell(2);
 
     g_iPlayer[client].Coins -= coins;
+    Db_UpdateClientCoins(client);
     return 0;
 }
 
@@ -556,6 +656,7 @@ public int Native_SetCoins(Handle plugin, int numParams)
     int coins = GetNativeCell(2);
 
     g_iPlayer[client].Coins = coins;
+    Db_UpdateClientCoins(client);
     return 0;
 }
 
@@ -716,7 +817,7 @@ public int Native_RewardOnCompletion(Handle plugin, int numParams)
 
     Missions_AddCoins(client, coins);
 
-    PrintToChat(client, "You've completed the mission '%s', You've been earned with %i coins!", MissionName, coins);
+    CPrintToChat(client, tag ... "You've completed the mission {yellow}%s{default}, You've been earned with {orange}%i{default} coins!", MissionName, coins);
     
     EmitSoundToClient(client, CompletionSND);
     int RandomNum = GetRandomInt(0, 56);

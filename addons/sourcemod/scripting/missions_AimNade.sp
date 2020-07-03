@@ -34,17 +34,14 @@ public Action Event_GrenadeThrown(Event event, const char[] name, bool dontBroad
 {
     int clientId = event.GetInt("userid");
     int client = GetClientOfUserId(clientId);
-    if (Missions_IsValidClientMission(client, Mission_Name))
+    if (Missions_IsValidClientMission(client, Mission_Name) && !Missions_HasCompleted(client, Mission_Name))
     {
-        if (!Missions_HasCompleted(client, Mission_Name))
+        Missions_AddProgression(client, Mission_Name);
+        if (Missions_HasCompleted(client, Mission_Name))
         {
-            Missions_AddProgression(client, Mission_Name);
-            if (Missions_HasCompleted(client, Mission_Name))
-            {
-                int goal = Missions_GetProgressionGoal(client, Mission_Name);
-                int coins = CoinsPerNade * goal;
-                Missions_RewardOnCompletion(client, Mission_Name, coins);
-            }
+            int goal = Missions_GetProgressionGoal(client, Mission_Name);
+            int coins = CoinsPerNade * goal;
+            Missions_RewardOnCompletion(client, Mission_Name, coins);
         }
     }
 }

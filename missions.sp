@@ -23,12 +23,13 @@ Database g_DataBase = null;
 ArrayList g_aMissionsList = null;
 ArrayList g_aMissionsSounds = null;
 
-int g_iMissionCounter = 0;
 char g_cClientMissions[(MAXPLAYERS + 1) * 3][32];
 char g_cMissionSave[MAXPLAYERS + 1][32];
 int g_iProgressionGoal[(MAXPLAYERS + 1) * 3];
 int g_iProgression[(MAXPLAYERS + 1) * 3];
 bool g_bCompleted[(MAXPLAYERS + 1) * 3];
+
+//bool g_bMissionsReady = false;
 
 ConVar g_cDebugging = null;
 
@@ -41,12 +42,13 @@ enum struct PlayerData
 
 PlayerData g_iPlayer[MAXPLAYERS + 1];
 
+//|----------Public plugins-----------|
 public Plugin myinfo =
 {
     name = "Missions",
     author = "MarsTwix",
     description = "Misions players can complete and get rewarded",
-    version = "0.5.0",
+    version = "0.5.1",
     url = "clwo.eu"
 };
 
@@ -54,6 +56,7 @@ public void OnPluginStart()
 {
     RegConsoleCmd("sm_coins", Command_Coins, "Prints the amount of coins you got");
     RegConsoleCmd("sm_missions", Command_Missions, "Print own/all missions and add/remove/set missions");
+    RegConsoleCmd("sm_dropdb", Command_DropDB, "");
 
     g_cDebugging = CreateConVar("missions_debug", "1", "This is to enable list/give/remove/set missions commands for testing/debugging.");
 
@@ -95,7 +98,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnMapStart()
 {
     PrecacheSound(CompletionSND);
-    for (int i = 0; i < 56; i++)
+    for (int i = 0; i < g_aMissionsSounds.Length; i++)
     {
         char SND[PLATFORM_MAX_PATH];
         g_aMissionsSounds.GetString(i, SND, sizeof(SND));
@@ -108,8 +111,10 @@ public void OnClientPutInServer(int client)
     g_iPlayer[client].Coins = -1;
 
     Db_SelectClientCoins(client);
+    Db_SelectClientMissions(client);
 }
 
+//|--------------Database-------------|
 public void DbCallback_Connect(Database db, const char[] error, any data)
 {
     if (db == null)
@@ -121,7 +126,9 @@ public void DbCallback_Connect(Database db, const char[] error, any data)
     g_DataBase = db;
     g_DataBase.SetCharset("utf8");
 
-    SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS store_coins (account_id INT UNSIGNED NOT NULL, coins INT UNSIGNED NOT NULL, PRIMARY KEY (account_id));");
+    SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS missions_coins (account_id INT UNSIGNED NOT NULL, coins INT UNSIGNED NOT NULL, PRIMARY KEY (account_id));");
+    SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS missions_player (id INTEGER PRIMARY KEY, account_id INT UNSIGNED NOT NULL, missions_id VARCHAR(32) NOT NULL);");
+    SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS missions_progression (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT, progression_goal INT UNSIGNED NOT NULL, progression_made INT UNSIGNED NOT NULL, PRIMARY KEY (id));");
 }
 
 public void Db_SelectClientCoins(int client)
@@ -129,7 +136,7 @@ public void Db_SelectClientCoins(int client)
     int accountId = GetSteamAccountID(client, true);
 
     char query[128];
-    Format(query, sizeof(query), "SELECT `coins` FROM `store_coins` WHERE `account_id` = '%d';", accountId);
+    Format(query, sizeof(query), "SELECT `coins` FROM `missions_coins` WHERE `account_id` = '%d';", accountId);
     g_DataBase.Query(DbCallback_SelectClientCoins, query, GetClientUserId(client));
 }
 
@@ -161,7 +168,7 @@ public void Db_InsertClientCoins(int client)
     int accountId = GetSteamAccountID(client, true);
 
     char query[89];
-    Format(query, sizeof(query), "INSERT INTO `store_coins` (`account_id`, `coins`) VALUES ('%d', '%d');", accountId, g_iPlayer[client].Coins);
+    Format(query, sizeof(query), "INSERT INTO `missions_coins` (`account_id`, `coins`) VALUES ('%d', '%d');", accountId, g_iPlayer[client].Coins);
     g_DataBase.Query(DbCallback_InsertClientCoins, query, GetClientUserId(client));
 }
 
@@ -184,7 +191,7 @@ public void Db_UpdateClientCoins(int client)
     int accountId = GetSteamAccountID(client, true);
 
     char query[89];
-    Format(query, sizeof(query), "UPDATE `store_coins` SET `coins` = '%d' WHERE `account_id` = '%d';", g_iPlayer[client].Coins, accountId);
+    Format(query, sizeof(query), "UPDATE `missions_coins` SET `coins` = '%d' WHERE `account_id` = '%d';", g_iPlayer[client].Coins, accountId);
     g_DataBase.Query(DbCallback_UpdateClientCoins, query, GetClientUserId(client));
 }
 
@@ -196,6 +203,73 @@ public void DbCallback_UpdateClientCoins(Database db, DBResultSet results, const
     }
 }
 
+public void Db_SelectClientMissions(int client)
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[128];
+    Format(query, sizeof(query), "SELECT `missions_id` FROM `missions_player` WHERE `account_id` = '%d';", accountId);
+    g_DataBase.Query(DbCallback_SelectClientMissions, query, GetClientUserId(client));
+}
+
+public void DbCallback_SelectClientMissions(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_SelectClientMissions: %s", error);
+        return;
+    }
+    int num = 0;
+    char MissionName[32];
+    int client = GetClientOfUserId(userid);
+    if (IsValidClient(client))
+    {
+        while (results.FetchRow())
+        {
+            results.FetchString(0, MissionName, sizeof(MissionName));
+            g_cClientMissions[client*3+num] = MissionName;
+            num++;
+        }
+    }
+}
+
+public void DB_InsertClientMission(int client, char MissionName[32])
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[89];
+    Format(query, sizeof(query), "INSERT INTO missions_player (account_id, missions_id) VALUES('%d', '%s');", accountId, MissionName);
+    g_DataBase.Query(DbCallback_InsertClientMission, query, GetClientUserId(client));
+}
+
+public void DbCallback_InsertClientMission(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_InsertClientMission: %s", error);
+        return;
+    }
+}
+
+public void DB_DeleteClientMission(int client, char MissionName[32])
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[89];
+    Format(query, sizeof(query), "DELETE FROM missions_player WHERE account_id = '%d' AND missions_id = '%s';", accountId, MissionName);
+    g_DataBase.Query(DbCallback_DeleteClientMission, query, GetClientUserId(client));
+}
+
+public void DbCallback_DeleteClientMission(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_DeleteClientMission: %s", error);
+        return;
+    }
+}
+
+//|------------Commands-----------|
 Action Command_Coins(int client, int args)
 {
     if (args == 0){CReplyToCommand(client, "Coins: {orange}%i{default}", g_iPlayer[client].Coins);}
@@ -438,6 +512,7 @@ public Action Command_Missions(int client, int args)
                         if (g_cClientMissions[client*3+i][0] == 0)
                         {
                             g_cClientMissions[client*3+i] = arg2;
+                            DB_InsertClientMission(client, arg2);
 
                             CPrintToChat(client, tag ... "Mission {orange}%s{default} is now on spot {yellow}%i{default}!",arg2, i+1);
                             NoSpace = false;
@@ -473,6 +548,25 @@ public Action Command_Missions(int client, int args)
     return Plugin_Handled;
 }
 
+public Action Command_DropDB(int client, int args)
+{
+    char query[89];
+    Format(query, sizeof(query), "DROP TABLE missions_player");
+    g_DataBase.Query(DbCallback_DeleteTable, query, GetClientUserId(client));
+    PrintToChat(client, "The table has been deleted!");
+}
+
+public void DbCallback_DeleteTable(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_DeleteTable: %s", error);
+        return;
+    }
+}
+
+//|--------------Menu stuff-----------|
+
 public int MenuHandler_ClientMissions(Menu menu, MenuAction action, int param1, int param2)
 {
     if (action == MenuAction_End)
@@ -507,6 +601,7 @@ public int MenuHandler_GiveAvailableMissions(Menu menu, MenuAction action, int p
                 if (g_cClientMissions[param1*3+i][0] == 0)
                 {
                     g_cClientMissions[param1*3+i] = info;
+                    DB_InsertClientMission(param1, info);
 
                     CPrintToChat(param1, tag ... "Mission {orange}%s{default} is now on spot {yellow}%i{default}!",info, i+1);
                     NoSpace = false;
@@ -630,6 +725,8 @@ public int MenuHandler_SetClientMissions(Menu menu, MenuAction action, int param
     }
 }
 
+//|---------------Natives--------------|
+
 public int Native_AddCoins(Handle plugin, int numParams)
 {
     int client = GetNativeCell(1);
@@ -665,7 +762,6 @@ public int Native_RegisterMission(Handle plugin, int numParams)
     char MissionName[32];
     GetNativeString(1, MissionName, sizeof(MissionName));
     g_aMissionsList.PushString(MissionName);
-    g_iMissionCounter++;
 }
 
 public int Native_IsValidMission(Handle plugin, int numParams)
@@ -762,6 +858,8 @@ public int Native_GiveMission(Handle plugin, int numParams)
             if (g_cClientMissions[client*3+i][0] == 0)
             {
                 g_cClientMissions[client*3+i] = MissionName;
+                DB_InsertClientMission(client, MissionName);
+
                 int index = client*3+i;
                 Call_StartForward(g_fwOnGivenMission);
                 Call_PushCell(client);
@@ -784,6 +882,8 @@ public int Native_RemoveMission(Handle plugin, int numParams)
     {
         int index = Missions_FindClientMission(client, MissionName);
         g_cClientMissions[index][0] = 0;
+        DB_DeleteClientMission(client, MissionName);
+
         g_iProgression[index] = 0;
         g_iProgressionGoal[index] = 0;
         g_bCompleted[index] = false;
@@ -827,6 +927,7 @@ public int Native_RewardOnCompletion(Handle plugin, int numParams)
     return 0;
 }
 
+//|-------------Sounds-------------|
 void AddSounds()
 {
     g_aMissionsSounds.PushString("player/vo/sas/onarollbrag01.wav");

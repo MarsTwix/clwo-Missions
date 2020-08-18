@@ -1,5 +1,5 @@
 <h1 align="center">
-    CLWO: Missions v0.5.1
+    CLWO: Missions v0.5.2
 </h1>
 <p align="center">
     <strong>This plugin is for the community CLWO. The plugin is about completing missions and getting rewarded for doing so.</strong>

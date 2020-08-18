@@ -10,6 +10,7 @@
 #include <colorlib>
 #include <ttt>
 
+
 //own
 #include <missions>
 
@@ -48,7 +49,7 @@ public Plugin myinfo =
     name = "Missions",
     author = "MarsTwix",
     description = "Misions players can complete and get rewarded",
-    version = "0.5.1",
+    version = "0.5.2",
     url = "clwo.eu"
 };
 
@@ -112,6 +113,7 @@ public void OnClientPutInServer(int client)
 
     Db_SelectClientCoins(client);
     Db_SelectClientMissions(client);
+    Db_SelectClientProgression(client);
 }
 
 //|--------------Database-------------|
@@ -128,10 +130,10 @@ public void DbCallback_Connect(Database db, const char[] error, any data)
 
     SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS missions_coins (account_id INT UNSIGNED NOT NULL, coins INT UNSIGNED NOT NULL, PRIMARY KEY (account_id));");
     SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS missions_player (id INTEGER PRIMARY KEY, account_id INT UNSIGNED NOT NULL, missions_id VARCHAR(32) NOT NULL);");
-    SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS missions_progression (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT, progression_goal INT UNSIGNED NOT NULL, progression_made INT UNSIGNED NOT NULL, PRIMARY KEY (id));");
+    SQL_FastQuery(g_DataBase, "CREATE TABLE IF NOT EXISTS missions_progression (id INTEGER PRIMARY KEY, account_id INT UNSIGNED NOT NULL, progression_made INT UNSIGNED NOT NULL, progression_goal INT UNSIGNED NOT NULL);");
 }
 
-public void Db_SelectClientCoins(int client)
+void Db_SelectClientCoins(int client)
 {
     int accountId = GetSteamAccountID(client, true);
 
@@ -163,7 +165,7 @@ public void DbCallback_SelectClientCoins(Database db, DBResultSet results, const
     }
 }
 
-public void Db_InsertClientCoins(int client)
+void Db_InsertClientCoins(int client)
 {
     int accountId = GetSteamAccountID(client, true);
 
@@ -181,7 +183,7 @@ public void DbCallback_InsertClientCoins(Database db, DBResultSet results, const
     }
 }
 
-public void Db_UpdateClientCoins(int client)
+void Db_UpdateClientCoins(int client)
 {
     if (g_iPlayer[client].Coins < 0)
     {
@@ -203,7 +205,7 @@ public void DbCallback_UpdateClientCoins(Database db, DBResultSet results, const
     }
 }
 
-public void Db_SelectClientMissions(int client)
+void Db_SelectClientMissions(int client)
 {
     int accountId = GetSteamAccountID(client, true);
 
@@ -233,7 +235,7 @@ public void DbCallback_SelectClientMissions(Database db, DBResultSet results, co
     }
 }
 
-public void DB_InsertClientMission(int client, char MissionName[32])
+void DB_InsertClientMission(int client, char MissionName[32])
 {
     int accountId = GetSteamAccountID(client, true);
 
@@ -251,7 +253,7 @@ public void DbCallback_InsertClientMission(Database db, DBResultSet results, con
     }
 }
 
-public void DB_DeleteClientMission(int client, char MissionName[32])
+void DB_DeleteClientMission(int client, char MissionName[32])
 {
     int accountId = GetSteamAccountID(client, true);
 
@@ -265,6 +267,118 @@ public void DbCallback_DeleteClientMission(Database db, DBResultSet results, con
     if (results == null)
     {
         PrintToServer("DbCallback_DeleteClientMission: %s", error);
+        return;
+    }
+}
+
+void Db_SelectClientProgression(int client)
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[128];
+    Format(query, sizeof(query), "SELECT `progression_made` AND `progression_goal` FROM `missions_progression` WHERE `account_id` = '%d';", accountId);
+    g_DataBase.Query(DbCallback_SelectClientProgression, query, GetClientUserId(client));
+}
+
+public void DbCallback_SelectClientProgression(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_SelectClientMissions: %s", error);
+        return;
+    }
+    int num = 0;
+    int client = GetClientOfUserId(userid);
+    if (IsValidClient(client))
+    {
+        while (results.FetchRow())
+        {
+            int ProgressionMade = results.FetchInt(0);
+            int ProgressionGoal = results.FetchInt(1);
+
+            g_iProgression[client*3+num] = ProgressionMade;
+            g_iProgressionGoal[client*3+num] = ProgressionGoal;
+            num++;
+        }
+    }
+}
+
+void DB_InsertClientProgression(int id, int client, int ProgressionGoal)
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[89];
+    Format(query, sizeof(query), "INSERT INTO missions_progression (id, account_id, progression_goal) VALUES('%i', '%d', '%i');", id, accountId, ProgressionGoal);
+    g_DataBase.Query(DbCallback_InsertClientProgression, query, GetClientUserId(client));
+}
+
+public void DbCallback_InsertClientProgression(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_InsertClientProgression: %s", error);
+        return;
+    }
+}
+
+int DB_GetId(int client, char MissionName[32])
+{
+    DBResultSet results;
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[255];
+    char error[255];
+    Format(query, sizeof(query), "SELECT `id` FROM `missions_player` WHERE `account_id = %d AND mission_id` = '%s';", accountId, MissionName);
+
+    results = SQL_Query(g_DataBase, query);
+    SQL_GetError(g_DataBase, error, sizeof(error));
+
+    if (results == null)
+    {
+        PrintToServer("DB_GetId: %s", error);
+        return -1;
+    }
+
+    else if (IsValidClient(client) && results.FetchRow())
+    {
+        return results.FetchInt(0);
+    }
+    return -1;
+}
+
+void DB_DeleteClientProgression(int client, int id)
+{
+    int accountId = GetSteamAccountID(client, true);
+
+    char query[255];
+    Format(query, sizeof(query), "DELETE FROM missions_progression WHERE account_id = '%d' AND id = '%i';", accountId, id);
+    g_DataBase.Query(DbCallback_DeleteClientProgression, query, GetClientUserId(client));
+}
+
+public void DbCallback_DeleteClientProgression(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_DeleteClientProgression: %s", error);
+        return;
+    }
+}
+
+void DB_UpdateClientProgression(int client, int id, char MissionName[32])
+{
+    int accountId = GetSteamAccountID(client, true);
+    int index = Missions_FindClientMission(client, MissionName);
+
+    char query[255];
+    Format(query, sizeof(query), "UPDATE `missions_progression` SET `progression_made` = '%d' WHERE account_id = '%d' AND id = '%i';", g_iProgression[index], accountId, id);
+    g_DataBase.Query(DbCallback_UpdateClientProgression, query, GetClientUserId(client));
+}
+
+public void DbCallback_UpdateClientProgression(Database db, DBResultSet results, const char[] error, int userid)
+{
+    if (results == null)
+    {
+        PrintToServer("DbCallback_UpdateClientProgression: %s", error);
         return;
     }
 }
@@ -550,18 +664,27 @@ public Action Command_Missions(int client, int args)
 
 public Action Command_DropDB(int client, int args)
 {
-    char query[89];
-    Format(query, sizeof(query), "DROP TABLE missions_player");
-    g_DataBase.Query(DbCallback_DeleteTable, query, GetClientUserId(client));
-    PrintToChat(client, "The table has been deleted!");
+    if (args == 1)
+    {
+        char arg1[64];
+        GetCmdArg(1, arg1, sizeof(arg1));
+        char query[255];
+        Format(query, sizeof(query), "DROP TABLE %s", arg1);
+        g_DataBase.Query(DbCallback_DeleteTable, query, client);
+    }
 }
 
-public void DbCallback_DeleteTable(Database db, DBResultSet results, const char[] error, int userid)
+public void DbCallback_DeleteTable(Database db, DBResultSet results, const char[] error, int client)
 {
     if (results == null)
     {
         PrintToServer("DbCallback_DeleteTable: %s", error);
+        PrintToChat(client, "Something went wrong with deleting the table!");
         return;
+    }
+    else
+    {
+        PrintToChat(client, "The table has been deleted!");
     }
 }
 
@@ -819,6 +942,8 @@ public int Native_SetProgressionGoal(Handle plugin, int numParams)
     {
         int index = Missions_FindClientMission(client, MissionName);
         g_iProgressionGoal[index] = goal;
+        int id = DB_GetId(client, MissionName);
+        DB_InsertClientProgression(id, client, goal);
     }
     return 0;
 }
@@ -841,6 +966,8 @@ public int Native_AddProgression(Handle plugin, int numParams)
     {
         int index = Missions_FindClientMission(client, MissionName);
         g_iProgression[index]++;
+        int id = DB_GetId(client, MissionName);
+        DB_UpdateClientProgression(client, id, MissionName);
     }
     return 0;
 }
@@ -883,6 +1010,8 @@ public int Native_RemoveMission(Handle plugin, int numParams)
         int index = Missions_FindClientMission(client, MissionName);
         g_cClientMissions[index][0] = 0;
         DB_DeleteClientMission(client, MissionName);
+        int id = DB_GetId(client, MissionName);
+        DB_DeleteClientProgression(client, id);
 
         g_iProgression[index] = 0;
         g_iProgressionGoal[index] = 0;

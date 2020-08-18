@@ -118,10 +118,16 @@ native void Missions_RemoveCoins(int client, int coins);
  native void Missions_RewardOnCompletion(int client, char[] MissionName, int coins);
 
  /**
- *Gets called when A mission has been given to a client
+ *Gets called when A mission has been given to a client.
  *
  * @param client            Client index.
  * @param MissionName       The name of the mission.
  * @param index             The index where the mission is placed.
  */         
  forward void Missions_OnGivenMission(int client, char[] MissionName, int index);
+
+ /**
+ *Gets called when the missions plugin is ready.
+ *
+ */
+ forward void Missions_OnMissionsReady();

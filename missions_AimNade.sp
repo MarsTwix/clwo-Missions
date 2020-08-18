@@ -17,8 +17,12 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-    Missions_RegisterMission(Mission_Name);
     HookEvent("grenade_thrown", Event_GrenadeThrown);
+}
+
+public void Missions_OnMissionsReady()
+{
+    Missions_RegisterMission(Mission_Name);
 }
 
 public void Missions_OnGivenMission(int client, char[] MissionName, int index)

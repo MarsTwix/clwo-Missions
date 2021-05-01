@@ -963,7 +963,7 @@ public int Native_GetProgressionGoal(Handle plugin, int numParams)
     int index = Missions_FindClientMission(client, MissionName);
     return g_iProgressionGoal[index];
 }
-//add that completion to true and that sql knows
+
 public int Native_AddProgression(Handle plugin, int numParams)
 {
     int client = GetNativeCell(1);
